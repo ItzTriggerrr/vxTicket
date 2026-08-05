@@ -27,7 +27,7 @@ const ShareIcon = () => (
 const CalendarIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-    <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+    <line x1="16" y1="2" x2="16" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
   </svg>
 )
 
@@ -198,7 +198,7 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
       return;
     }
 
-    setIsBooking(true)
+    setIsBooking(true);
 
     try {
       const orderPayload = {
@@ -213,61 +213,62 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
         customerName: customerName.trim(),
         customerEmail: customerEmail.trim(),
         momoNumber: activeSelectedTier.isFree ? null : momoNumber.trim()
-      }
+      };
 
       const response = await fetch("/api/tickets/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orderPayload)
-      })
+      });
 
-      if (!response.ok) {
-        throw new Error("Local platform connection unresolved due to active database maintenance.")
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to initialize booking.");
       }
 
-      const result = await response.json()
-      
-      // Close the checkout modal
-      setIsCheckoutOpen(false)
-
-      toast({
-        title: "Booking Successful!",
-        description: " Please wait while Your Ticket is being generated...",
-        status: "success",
-        duration: 6000,
-        position: "top"
-      })
-
-      // Push the user directly to the new Ticket Pass details receipt client!
-      const targetOrderId = result.orderId || result.id
-      router.push(`/${locale}/tickets/${targetOrderId}`)
-
-    } catch (err: any) {
-      console.warn("⚠️ Database Connection Unavailable: Running sandbox simulator checkout.", err)
-      
-      toast({
-        title: "Database mismatch ",
-        description: "Please cross check your information and try again.",
-        status: "info",
-        position: "top",
-        duration: 2500
-      })
-
-      setTimeout(() => {
+      // FREE TICKET FLOW: Direct redirect to pass receipt
+      if (activeSelectedTier.isFree) {
+        setIsCheckoutOpen(false);
         toast({
-          title: "Confirmed!",
-          description: "Code: VT-SANDBOX-PASS",
+          title: "Booking Successful!",
+          description: "Please wait while your ticket is being generated...",
           status: "success",
+          duration: 4000,
+          position: "top"
+        });
+        const targetOrderId = result.orderId;
+        router.push(`/${locale}/tickets/${targetOrderId}`);
+        return;
+      }
+
+      // PAID TICKET FLOW: Redirect directly to Paystack's secure checkout URL
+      if (result.checkoutUrl) {
+        toast({
+          title: "Redirecting to Paystack...",
+          description: "Enter your details on Paystack to trigger your MoMo prompt.",
+          status: "info",
           duration: 3000,
           position: "top"
-        })
-        setIsBooking(false)
-        setIsCheckoutOpen(false)
-      }, 2000)
+        });
+        window.location.href = result.checkoutUrl;
+      } else {
+        throw new Error("Payment link was not generated properly by the payment gateway.");
+      }
+
+    } catch (err: any) {
+      console.error("Booking Error:", err);
+      toast({
+        title: "Booking Failed",
+        description: err.message || "Please check your information and try again.",
+        status: "error",
+        position: "top",
+        duration: 4000
+      });
     } finally {
-      setIsBooking(false)
+      setIsBooking(false);
     }
-  }
+  };
 
   return (
     <Box minH="100vh" bg="#0d0d0d" fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" color="white" pb={{ base: "100px", md: "40px" }}>
