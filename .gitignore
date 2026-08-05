@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Next.js Build Output (Catches src/.next, root .next, and nested builds)
+.next/
+src/.next/
+**/.next/
+out/
+build/
+dist/
+
+# AI / Tooling Caches (Catches src/.sixth and root .sixth)
+.sixth/
+src/.sixth/
+**/.sixth/
+.vercel/
+
+# Security & Secrets (Strict wildcard catching all env files except templates)
+.env
+.env.*
+!.env.example
+
+# Environment & IDE Metadata
+.DS_Store
+Thumbs.db
+*.pem
+*.log
+
+# TypeScript / Build Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
