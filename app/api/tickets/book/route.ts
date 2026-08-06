@@ -98,6 +98,19 @@ export async function POST(request: Request) {
 
     if (!tier.isFree && process.env.PAYSTACK_SECRET_KEY) {
       try {
+        // Enforce mandatory host payout subaccount requirement
+        const targetSubaccountCode = (providerProfile as any)?.paystackSubaccountCode;
+
+        if (!targetSubaccountCode || !targetSubaccountCode.startsWith("ACCT_")) {
+          return NextResponse.json(
+            { 
+              success: false, 
+              error: "The organizer for this event has not completed their live subaccount verification." 
+            },
+            { status: 400 }
+          );
+        }
+
         // Convert flat amount into Pesewas/Kobo (multiplied by 100 as required by Paystack API)
         const amountInSubunits = Math.round(calculatedGrandTotal * 100);
         const providerShareInSubunits = Math.round(calculatedProviderPayout * 100);
@@ -114,13 +127,7 @@ export async function POST(request: Request) {
             ticketTierName: tier.name,
             quantity: quantity,
           },
-        };
-
-        // Explicit cast bypass handles the missing schema parameter cleanly for right now!
-        const targetSubaccountCode = (providerProfile as any)?.paystackSubaccountCode;
-
-        if (targetSubaccountCode) {
-          paystackPayload.split = {
+          split: {
             type: "flat",
             bearer: "subaccount", // Vendor subaccount absorbs standard Paystack transaction gateway fees
             subaccounts: [
@@ -129,8 +136,8 @@ export async function POST(request: Request) {
                 share: providerShareInSubunits, // The vendor's exact 93% share split allocation
               }
             ]
-          };
-        }
+          }
+        };
 
         // Call the Paystack Transaction Initialize Endpoint
         const paystackResponse = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -153,6 +160,7 @@ export async function POST(request: Request) {
         }
       } catch (paystackError) {
         console.error("Paystack Gateway Timeout / Exception:", paystackError);
+        return NextResponse.json({ success: false, error: "Paystack gateway connection timeout." }, { status: 500 });
       }
     }
 
