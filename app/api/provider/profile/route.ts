@@ -22,7 +22,7 @@ const getPaystackBankCode = (provider: string): string => {
   }
 };
 
-// ─── 🚀 UPDATED GET ROUTE: REHYDRATE FULL PROFILE DATA LIVE ──────────
+// ─── 🚀 GET ROUTE: REHYDRATE FULL PROFILE DATA LIVE ──────────────────
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -44,8 +44,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ isVerified: false, profile: null }, { status: 200 });
     }
 
-    // Check if the record matches the expected security clearance tracking flag
-    const isVerified = profile.kycStatus === "VERIFIED";
+    // ✅ AUTOMATIC VERIFICATION: Check both direct boolean flag and kycStatus string (Case-insensitive)
+    const rawStatus = (profile.kycStatus || "").toUpperCase();
+    const isVerified = (profile as any).isVerified === true || rawStatus === "VERIFIED" || rawStatus === "APPROVED";
 
     return NextResponse.json({ isVerified, profile }, { status: 200 });
   } catch (error: any) {
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
   }
 }
 
-// ─── EXISTING POST ROUTE: SUBACCOUNT CREATION & PERSISTENCE ──────────
+// ─── 🚀 POST ROUTE: AUTOMATIC SUBACCOUNT CREATION & INSTANT APPROVAL ───
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Persist Validated Entries & Subaccount Reference Straight to Supabase via Prisma Upsert
+    // 4. Persist Validated Entries & Subaccount Reference with 100% Automatic Approval
     const updatedProfile = await prisma.providerProfile.upsert({
       where: { userId: userId },
       update: {
@@ -148,8 +149,9 @@ export async function POST(request: Request) {
         payoutAccountId: accountNumber,
         accountNameRaw: legalName.toUpperCase(),
         kycStatus: "VERIFIED", 
+        isVerified: true, // 👈 100% Instant Automatic Clearance
         paystackSubaccountCode: paystackSubaccountCode,
-      },
+      } as any,
       create: {
         userId: userId,
         businessName: `${legalName}'s Enterprise Hub`, 
@@ -163,14 +165,16 @@ export async function POST(request: Request) {
         payoutAccountId: accountNumber,
         accountNameRaw: legalName.toUpperCase(),
         kycStatus: "VERIFIED",
+        isVerified: true, // 👈 100% Instant Automatic Clearance
         paystackSubaccountCode: paystackSubaccountCode,
-      },
+      } as any,
     });
 
     return NextResponse.json(
       { 
-        message: "Identity records and Paystack split-routes mapped successfully.", 
+        message: "Identity records verified and Paystack subaccount created instantly.", 
         profile: updatedProfile,
+        isVerified: true,
         paystackSubaccountCode: paystackSubaccountCode 
       },
       { status: 200 }
