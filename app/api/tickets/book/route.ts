@@ -115,13 +115,21 @@ export async function POST(request: Request) {
         const amountInSubunits = Math.round(calculatedGrandTotal * 100);
         const providerShareInSubunits = Math.round(calculatedProviderPayout * 100);
 
+        // 🚀 DYNAMIC CALLBACK URL RESOLUTION: Prevents broken local host redirects on live deployment
+        const originHeader = request.headers.get("origin") || request.headers.get("referer");
+        const fallbackDomain = process.env.NEXT_PUBLIC_APP_URL || "https://vxticket.vercel.app";
+        const baseDomain = (originHeader || fallbackDomain).replace(/\/$/, "");
+        
+        // Build absolute redirect URL for post-payment verification
+        const dynamicCallbackUrl = `${baseDomain}/en/payment-success`;
+
         // Build the authorization payload base
         const paystackPayload: any = {
           email: customerEmail.toLowerCase().trim(),
           amount: amountInSubunits,
           reference: transactionReference,
           currency: currency || "GHS",
-          callback_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/payment-success`,
+          callback_url: dynamicCallbackUrl,
           metadata: {
             eventId: event.id,
             ticketTierName: tier.name,
