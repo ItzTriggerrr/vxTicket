@@ -6,7 +6,8 @@ import {
   Box, Flex, Text, Heading, Badge, IconButton,
   Divider, Button, HStack, VStack, Spinner, useToast, Image,
   Drawer, DrawerBody, DrawerFooter, DrawerHeader, DrawerOverlay, 
-  DrawerContent, DrawerCloseButton, FormControl, FormLabel, Input, Select
+  DrawerContent, DrawerCloseButton, FormControl, FormLabel, Input, Select,
+  Alert, AlertIcon, AlertTitle, AlertDescription
 } from '@chakra-ui/react'
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
@@ -70,7 +71,7 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
   const toast = useToast()
   const router = useRouter()
   const params = useParams()
-  const locale = params?.locale || 'en' // Safely fallback to 'en' locale if missing
+  const locale = params?.locale || 'en'
 
   const [event] = useState<any>(initialEvent)
   const [selectedTierId, setSelectedTierId] = useState<string | null>(
@@ -135,7 +136,7 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
       
       toast({
         title: "Link Copied!",
-        description: "link copied.",
+        description: "Link copied to clipboard.",
         status: "success",
         duration: 3000,
         isClosable: true,
@@ -166,6 +167,12 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
   };
 
   const activeSelectedTier = event.tiers?.find((t: any) => t.id === selectedTierId)
+  
+  // ─── CAPACITY CALCULATION & ALERT BANNER LOGIC ─────────────────────────────
+  const isTierSoldOut = activeSelectedTier && activeSelectedTier.capacity !== null && (activeSelectedTier.sold || 0) >= activeSelectedTier.capacity;
+  const remainingCapacity = activeSelectedTier && activeSelectedTier.capacity !== null ? activeSelectedTier.capacity - (activeSelectedTier.sold || 0) : null;
+  const isRunningLow = remainingCapacity !== null && remainingCapacity > 0 && remainingCapacity <= Math.max(5, Math.ceil(activeSelectedTier.capacity * 0.1));
+
   const computedDisplayPrice = activeSelectedTier 
     ? (activeSelectedTier.isFree || Number(activeSelectedTier.price) === 0 ? "Free Pass" : `${currency.code} ${Number(activeSelectedTier.price).toFixed(2)}`)
     : "Select Option"
@@ -246,7 +253,7 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
       if (result.checkoutUrl) {
         toast({
           title: "Redirecting to Paystack...",
-          description: "Enter your details on Paystack to trigger your MoMo prompt.",
+          description: "",
           status: "info",
           duration: 3000,
           position: "top"
@@ -339,6 +346,35 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
           </Box>
         </Box>
 
+        {/* Dynamic Capacity Warning Banner */}
+        {isTierSoldOut && (
+          <Box px={{ base: "16px", md: "0" }} mt="20px">
+            <Alert status="error" bg="rgba(239, 68, 68, 0.15)" border="1.5px solid #ef4444" borderRadius="16px" color="white">
+              <AlertIcon color="#ef4444" />
+              <Box>
+                <AlertTitle fontSize="15px" fontWeight="800">SOLD OUT!</AlertTitle>
+                <AlertDescription fontSize="13px" color="gray.300">
+                  This ticket tier has reached maximum venue capacity.
+                </AlertDescription>
+              </Box>
+            </Alert>
+          </Box>
+        )}
+
+        {!isTierSoldOut && isRunningLow && (
+          <Box px={{ base: "16px", md: "0" }} mt="20px">
+            <Alert status="warning" bg="rgba(245, 158, 11, 0.15)" border="1.5px solid #f59e0b" borderRadius="16px" color="white">
+              <AlertIcon color="#f59e0b" />
+              <Box>
+                <AlertTitle fontSize="15px" fontWeight="800">FEW TICKETS REMAINING!</AlertTitle>
+                <AlertDescription fontSize="13px" color="gray.300">
+                  Hurry! Only {remainingCapacity} slots left for {activeSelectedTier?.name}.
+                </AlertDescription>
+              </Box>
+            </Alert>
+          </Box>
+        )}
+
         {/* Content Split Layout for Desktop */}
         <Flex direction={{ base: "column", md: "row" }} mt={{ base: "0", md: "40px" }} gap={{ base: "0", md: "40px", lg: "64px" }}>
           
@@ -429,7 +465,8 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
                 ) : (
                   <VStack spacing="12px" align="stretch" mb="24px">
                     {event.tiers.map((tier: any) => {
-                      const isSelected = selectedTierId === tier.id
+                      const isSelected = selectedTierId === tier.id;
+                      const isSoldOut = tier.capacity !== null && (tier.sold || 0) >= tier.capacity;
                       return (
                         <Box 
                           key={tier.id}
@@ -438,13 +475,17 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
                           borderRadius="14px" 
                           px="16px" 
                           py="16px" 
-                          cursor="pointer" 
-                          onClick={() => setSelectedTierId(tier.id)}
+                          cursor={isSoldOut ? "not-allowed" : "pointer"} 
+                          opacity={isSoldOut ? 0.6 : 1}
+                          onClick={() => !isSoldOut && setSelectedTierId(tier.id)}
                           transition="all 0.15s"
                         >
                           <Flex justify="space-between" align="flex-start">
                             <Box pr="16px">
-                              <Text fontSize="15px" fontWeight="700" color="white" mb="4px">{tier.name}</Text>
+                              <HStack spacing="8px" mb="4px">
+                                <Text fontSize="15px" fontWeight="700" color="white">{tier.name}</Text>
+                                {isSoldOut && <Badge colorScheme="red" fontSize="10px">SOLD OUT</Badge>}
+                              </HStack>
                               {tier.description && <Text fontSize="12px" color="#888" lineHeight="1.4">{tier.description}</Text>}
                             </Box>
                             <Box textAlign="right" flexShrink={0}>
@@ -469,8 +510,19 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
                         <Text fontSize="26px" fontWeight="800" color="white" lineHeight="1">{computedDisplayPrice}</Text>
                       </Box>
                     </Flex>
-                    <Button w="100%" bg="#22c55e" color="black" _hover={{ bg: '#16a34a' }} borderRadius="12px" fontSize="16px" fontWeight="700" h="56px" onClick={() => setIsCheckoutOpen(true)}>
-                      Book Ticket
+                    <Button 
+                      w="100%" 
+                      bg="#22c55e" 
+                      color="black" 
+                      _hover={{ bg: '#16a34a' }} 
+                      borderRadius="12px" 
+                      fontSize="16px" 
+                      fontWeight="700" 
+                      h="56px" 
+                      isDisabled={isTierSoldOut}
+                      onClick={() => setIsCheckoutOpen(true)}
+                    >
+                      {isTierSoldOut ? "Sold Out" : "Book Ticket"}
                     </Button>
                   </Box>
                 )}
@@ -514,8 +566,19 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
               <Text fontSize="12px" color="#888" mb={1}>Total Amount</Text>
               <Text fontSize="20px" fontWeight="800" color="white" lineHeight="1">{computedDisplayPrice}</Text>
             </Box>
-            <Button bg="#22c55e" color="black" _hover={{ bg: '#16a34a' }} borderRadius="12px" fontSize="15px" fontWeight="700" h="48px" px="32px" onClick={() => setIsCheckoutOpen(true)}>
-              Book Ticket
+            <Button 
+              bg="#22c55e" 
+              color="black" 
+              _hover={{ bg: '#16a34a' }} 
+              borderRadius="12px" 
+              fontSize="15px" 
+              fontWeight="700" 
+              h="48px" 
+              px="32px" 
+              isDisabled={isTierSoldOut}
+              onClick={() => setIsCheckoutOpen(true)}
+            >
+              {isTierSoldOut ? "Sold Out" : "Book Ticket"}
             </Button>
           </Flex>
         </Box>
@@ -524,15 +587,15 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
       {/* ─── 🛡️ THE INTERACTIVE CHECKOUT & BOOKING DRAWER ────────────────────── */}
       <Drawer isOpen={isCheckoutOpen} placement="right" onClose={() => setIsCheckoutOpen(false)} size={{ base: "full", md: "md" }}>
         <DrawerOverlay bg="blackAlpha.800" backdropFilter="blur(8px)" />
-        <DrawerContent bg="#121212" color="white" borderLeft="1px solid #222" maxW={{ md: "460px" }}>
+        <DrawerContent bg="#121212" color="white" borderLeft="1px solid #222" maxW={{ md: "460px" }} display="flex" flexDirection="column" h="100vh">
           <DrawerCloseButton color="gray.400" _hover={{ color: "white" }} top="18px" right="18px" />
           
-          <DrawerHeader borderBottom="1px solid #222" py="20px" px="24px">
+          <DrawerHeader borderBottom="1px solid #222" py="20px" px="24px" flexShrink={0}>
             <Text fontSize="13px" fontWeight="700" color="#22c55e" letterSpacing="1px" textTransform="uppercase" mb="4px">Secure Checkout</Text>
             <Heading size="md" color="white" fontWeight="800">Review & Booking</Heading>
           </DrawerHeader>
 
-          <DrawerBody px="24px" py="24px" css={{ '&::-webkit-scrollbar': { width: '4px' }, '&::-webkit-scrollbar-thumb': { background: '#222', borderRadius: '4px' } }}>
+          <DrawerBody flex="1" overflowY="auto" px="24px" py="24px" css={{ '&::-webkit-scrollbar': { width: '4px' }, '&::-webkit-scrollbar-thumb': { background: '#222', borderRadius: '4px' } }}>
             {activeSelectedTier ? (
               <VStack spacing="24px" align="stretch">
                 
@@ -552,17 +615,41 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
                   </Flex>
                 </Box>
 
-                {/* Stage 2: Ticket Quantity Selector */}
+                {/* Stage 2: Ticket Quantity Selector (+ / - Buttons) */}
                 <FormControl>
                   <FormLabel fontSize="12px" fontWeight="700" color="gray.400" mb="8px" letterSpacing="0.5px">SELECT TICKET QUANTITY</FormLabel>
-                  <HStack maxW="150px" bg="#1a1a1a" border="1.5px solid #2a2a2a" borderRadius="12px" p="4px" justify="space-between">
-                    <IconButton aria-label="Decrease quantity" size="sm" bg="transparent" color="white" _hover={{ bg: "whiteAlpha.100" }} onClick={() => setCheckoutQuantity(prev => Math.max(1, prev - 1))} isDisabled={checkoutQuantity <= 1}>
+                  <HStack maxW="160px" bg="#1a1a1a" border="1.5px solid #2a2a2a" borderRadius="12px" p="6px" justify="space-between">
+                    <Button 
+                      size="sm" 
+                      w="36px" 
+                      h="36px" 
+                      bg="#262626" 
+                      color="white" 
+                      fontSize="18px"
+                      fontWeight="700"
+                      _hover={{ bg: "#333" }} 
+                      _active={{ bg: "#1f1f1f" }}
+                      onClick={() => setCheckoutQuantity(prev => Math.max(1, prev - 1))} 
+                      isDisabled={checkoutQuantity <= 1}
+                    >
                       -
-                    </IconButton>
-                    <Text fontWeight="800" fontSize="16px" color="white">{checkoutQuantity}</Text>
-                    <IconButton aria-label="Increase quantity" size="sm" bg="transparent" color="white" _hover={{ bg: "whiteAlpha.100" }} onClick={() => setCheckoutQuantity(prev => Math.min(5, prev + 1))} isDisabled={checkoutQuantity >= 5}>
+                    </Button>
+                    <Text fontWeight="800" fontSize="18px" color="white" userSelect="none">{checkoutQuantity}</Text>
+                    <Button 
+                      size="sm" 
+                      w="36px" 
+                      h="36px" 
+                      bg="#262626" 
+                      color="white" 
+                      fontSize="18px"
+                      fontWeight="700"
+                      _hover={{ bg: "#333" }} 
+                      _active={{ bg: "#1f1f1f" }}
+                      onClick={() => setCheckoutQuantity(prev => Math.min(5, prev + 1))} 
+                      isDisabled={checkoutQuantity >= 5}
+                    >
                       +
-                    </IconButton>
+                    </Button>
                   </HStack>
                   <Text fontSize="11px" color="gray.500" mt="6px">Maximum limit of 5 ticket slots per session booking rules.</Text>
                 </FormControl>
@@ -579,8 +666,8 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
                   </FormControl>
 
                   <FormControl isRequired>
-                    <FormLabel fontSize="12px" color="gray.500" mb="6px">email</FormLabel>
-                    <Input type="email" placeholder="" h="46px" bg="#1a1a1a" border="1.5px solid #2a2a2a" borderRadius="10px" _focus={{ borderColor: "#22c55e", boxShadow: "none" }} value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
+                    <FormLabel fontSize="12px" color="gray.500" mb="6px">Email Address</FormLabel>
+                    <Input type="email" placeholder="e.g. john@example.com" h="46px" bg="#1a1a1a" border="1.5px solid #2a2a2a" borderRadius="10px" _focus={{ borderColor: "#22c55e", boxShadow: "none" }} value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
                   </FormControl>
                 </VStack>
 
@@ -602,7 +689,7 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
 
                       <FormControl isRequired>
                         <FormLabel fontSize="12px" color="gray.500" mb="6px">Wallet Number</FormLabel>
-                        <Input type="tel" placeholder="" h="46px" bg="#1a1a1a" border="1.5px solid #2a2a2a" borderRadius="10px" _focus={{ borderColor: "#22c55e", boxShadow: "none" }} value={momoNumber} onChange={(e) => setMomoNumber(e.target.value)} />
+                        <Input type="tel" placeholder="e.g. 024XXXXXXX" h="46px" bg="#1a1a1a" border="1.5px solid #2a2a2a" borderRadius="10px" _focus={{ borderColor: "#22c55e", boxShadow: "none" }} value={momoNumber} onChange={(e) => setMomoNumber(e.target.value)} />
                       </FormControl>
                     </VStack>
                   </>
@@ -611,7 +698,7 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
                 <Divider borderColor="#222" />
 
                 {/* Stage 5: Billing Summary */}
-                <VStack spacing="10px" bg="#1a1a1a" p="16px" borderRadius="16px" border="1px solid #2a2a2a" fontSize="13px" align="stretch">
+                <VStack spacing="10px" bg="#1a1a1a" p="16px" borderRadius="16px" border="1px solid #2a2a2a" fontSize="13px" align="stretch" mb="12px">
                   <Text fontSize="11px" fontWeight="700" color="gray.500" mb="4px" letterSpacing="0.5px">BILLING SUMMARY</Text>
                   
                   <Flex justify="space-between">
@@ -640,11 +727,12 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
             )}
           </DrawerBody>
 
-          <DrawerFooter borderTop="1px solid #222" py="18px" px="24px">
-            <Button variant="ghost" color="gray.400" _hover={{ bg: "whiteAlpha.100", color: "white" }} mr={3} onClick={() => setIsCheckoutOpen(false)} borderRadius="10px" h="48px" flex="1">
+          {/* 🚀 STICKY FOOTER ACTION BAR */}
+          <DrawerFooter borderTop="1px solid #222" py="18px" px="24px" bg="#121212" flexShrink={0}>
+            <Button variant="ghost" color="gray.400" _hover={{ bg: "whiteAlpha.100", color: "white" }} mr={3} onClick={() => setIsCheckoutOpen(false)} borderRadius="10px" h="50px" flex="1">
               Cancel
             </Button>
-            <Button bg="#22c55e" color="black" _hover={{ bg: '#16a34a' }} h="48px" borderRadius="10px" fontWeight="800" flex="2" isLoading={isBooking} loadingText="Completing Order..." onClick={handleFinalizeBooking}>
+            <Button bg="#22c55e" color="black" _hover={{ bg: '#16a34a' }} h="50px" borderRadius="10px" fontWeight="800" fontSize="15px" flex="2" isLoading={isBooking} loadingText="Completing Order..." onClick={handleFinalizeBooking}>
               {activeSelectedTier?.isFree ? "Claim Free Ticket" : "Pay & Book Now"}
             </Button>
           </DrawerFooter>
