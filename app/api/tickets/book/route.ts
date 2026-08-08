@@ -113,7 +113,6 @@ export async function POST(request: Request) {
 
         // Convert flat amount into Pesewas/Kobo (multiplied by 100 as required by Paystack API)
         const amountInSubunits = Math.round(calculatedGrandTotal * 100);
-        const providerShareInSubunits = Math.round(calculatedProviderPayout * 100);
 
         // 🚀 DYNAMIC CALLBACK URL RESOLUTION: Prevents broken local host redirects on live deployment
         const originHeader = request.headers.get("origin") || request.headers.get("referer");
@@ -123,28 +122,22 @@ export async function POST(request: Request) {
         // Build absolute redirect URL for post-payment verification
         const dynamicCallbackUrl = `${baseDomain}/en/payment-success`;
 
-        // Build the authorization payload base
+        // ✅ FIXED PAYSTACK PAYLOAD: Uses Paystack's native subaccount parameter!
+        // Paystack automatically applies the 7% platform fee defined during subaccount creation
+        // and routes 93% directly to the organizer's MoMo account!
         const paystackPayload: any = {
           email: customerEmail.toLowerCase().trim(),
           amount: amountInSubunits,
           reference: transactionReference,
           currency: currency || "GHS",
           callback_url: dynamicCallbackUrl,
+          subaccount: targetSubaccountCode, // 👈 DIRECT NATIVE SUBACCOUNT SPLIT
+          bearer: "subaccount", // Subaccount absorbs gateway transaction charges
           metadata: {
             eventId: event.id,
             ticketTierName: tier.name,
             quantity: quantity,
           },
-          split: {
-            type: "flat",
-            bearer: "subaccount", // Vendor subaccount absorbs standard Paystack transaction gateway fees
-            subaccounts: [
-              {
-                subaccount: targetSubaccountCode, // ACCT_xxxxxxx
-                share: providerShareInSubunits, // The vendor's exact 93% share split allocation
-              }
-            ]
-          }
         };
 
         // Call the Paystack Transaction Initialize Endpoint
