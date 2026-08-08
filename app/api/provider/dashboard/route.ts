@@ -33,15 +33,14 @@ export async function GET(request: Request) {
           where: { eventId: event.id },
         });
 
-        // Query orders with flexible status matching (Paystack + local statuses)
+        // ✅ FIXED: Strictly query confirmed/successful/free orders (Removed "Pending")
         const successfulOrders = await prisma.ticketOrder.findMany({
           where: { 
             eventId: event.id, 
             status: { 
               in: [
                 "SUCCESSFUL", "Successful", "success", "SUCCESS", 
-                "Paid", "paid", "PAID", 
-                "Pending", "Free"
+                "Paid", "paid", "PAID", "Free"
               ] 
             } 
           },

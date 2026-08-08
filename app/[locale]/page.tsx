@@ -444,7 +444,7 @@ export default function Home() {
               vxticket@gmail.com
             </Text>
             <Text fontSize={{ base: "12px", md: "14px" }} color="rgba(255,255,255,0.4)" lineHeight="1.8">
-              © 2026 vxTicket Network • 
+              © 2026 QuickServe Network • 
               <Box as="span" ml="6px" cursor="pointer" color="#4CAF50" fontWeight="700" _hover={{ textDecoration: 'underline' }} onClick={() => handleOpenLegalDrawer("TERMS")}>Terms of Service</Box>
               • 
               <Box as="span" ml="6px" cursor="pointer" color="#4CAF50" fontWeight="700" _hover={{ textDecoration: 'underline' }} onClick={() => handleOpenLegalDrawer("PRIVACY")}>Privacy Policy</Box>

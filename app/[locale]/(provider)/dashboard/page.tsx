@@ -42,7 +42,7 @@ const CheckCircleIcon = () => (
 )
 
 const WaitlistIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
     <rect x="4" y="2" width="18" height="24" rx="3" stroke="#f97316" strokeWidth="2" fill="none"/>
     <path d="M9 9h8M9 14h8M9 19h5" stroke="#f97316" strokeWidth="2" strokeLinecap="round"/>
     <circle cx="24" cy="24" r="6" fill="#161616"/>
@@ -184,7 +184,7 @@ export default function DashboardPage() {
   const grossRevenue = activeEvent?.tiers ? activeEvent.tiers.reduce((acc: number, tier: any) => acc + ((tier.price || 0) * (tier.sold || 0)), 0) : 0;
   const netEarningsPayout = grossRevenue * 0.93; 
   
-  const totalWaitlist = totalTicketsSold - totalCheckedIn;
+  const totalPendingCheckIn = totalTicketsSold - totalCheckedIn;
 
   // Handle Event Switching & Persist Selection
   const handleSelectEvent = (index: number, eventId: string) => {
@@ -410,7 +410,7 @@ export default function DashboardPage() {
         {!hasActiveEntries ? (
           <Flex direction="column" align="center" justify="center" p={{ base: "32px 16px", md: "60px" }} mx={{ base: "16px", md: "40px" }} mt="40px" bg="#161616" border="1px solid #2A2A2A" borderRadius="24px">
             <TicketIcon />
-            <Text fontWeight="700" fontSize="18px" color="white" mt="16px" textAlign="center">No event Discovered</Text>
+            <Text fontWeight="700" fontSize="18px" color="white" mt="16px" textAlign="center">No Event Discovered</Text>
             <Text fontSize="14px" color="#6b7280" mt="4px" mb="24px" textAlign="center" maxW="380px">Create your event and start making sales.</Text>
             <Button isDisabled={!isKycVerified} w={{ base: "100%", sm: "auto" }} bg="#22c55e" color="white" h="52px" px="36px" borderRadius="50px" _hover={{ bg: "#16a34a" }} onClick={() => window.location.href = `/${currentLocale}/events/create`}>Create Your First Event</Button>
           </Flex>
@@ -453,10 +453,10 @@ export default function DashboardPage() {
               
               <GridItem>
                 <Box bg="#1a1a1a" borderRadius="16px" p={{ base: "12px", md: "14px" }} h="100%" display="flex" flexDirection="column" justifyContent="space-between">
-                  <Text fontSize="11px" color="#6b7280" mb="8px">Waitlist</Text>
+                  <Text fontSize="11px" color="#6b7280" mb="8px">Pending Entry</Text>
                   <Flex align="center" gap="6px">
                     <WaitlistIcon />
-                    <Heading as="h3" fontSize={{ base: "18px", md: "24px" }} fontWeight="700" color="white">{totalWaitlist}</Heading>
+                    <Heading as="h3" fontSize={{ base: "18px", md: "24px" }} fontWeight="700" color="white">{totalPendingCheckIn}</Heading>
                   </Flex>
                 </Box>
               </GridItem>
@@ -497,14 +497,48 @@ export default function DashboardPage() {
               </Box>
             </Flex>
 
-            <Flex direction={{ base: "column", sm: "row" }} px={{ base: "16px", md: "40px" }} mt="40px" gap="12px">
-              <Button isDisabled={!isKycVerified} flex="1" h="54px" bg="#22c55e" color="white" borderRadius="50px" fontSize="16px" fontWeight="600" _hover={{ bg: '#16a34a' }} onClick={() => window.location.href = `/${currentLocale}/events/create`}>
-                Create Event
-              </Button>
-              <Button flex="1" h="54px" bg="#1a1a1a" color="white" borderRadius="50px" fontSize="15px" fontWeight="500" border="1px solid #2a2a2a" _hover={{ bg: '#222' }} onClick={() => setIsSwitchModalOpen(true)}>
-                Switch Between Events
-              </Button>
-            </Flex>
+            {/* 🚀 SIDE-BY-SIDE PROMINENT ACTION BUTTONS */}
+            <Box px={{ base: "16px", md: "40px" }} mt="32px">
+              <Grid templateColumns={{ base: "1fr", sm: "1fr 1fr" }} gap="16px" w="100%">
+                <GridItem>
+                  <Button 
+                    isDisabled={!isKycVerified} 
+                    w="100%" 
+                    h="58px" 
+                    bg="#22c55e" 
+                    color="black" 
+                    borderRadius="16px" 
+                    fontSize="16px" 
+                    fontWeight="800" 
+                    _hover={{ bg: '#16a34a', transform: 'translateY(-1px)' }} 
+                    _active={{ transform: 'translateY(0)' }}
+                    transition="all 0.15s ease-in-out"
+                    boxShadow="0 4px 14px rgba(34, 197, 94, 0.25)"
+                    onClick={() => window.location.href = `/${currentLocale}/events/create`}
+                  >
+                    + Create Event
+                  </Button>
+                </GridItem>
+                <GridItem>
+                  <Button 
+                    w="100%" 
+                    h="58px" 
+                    bg="#1a1a1a" 
+                    color="white" 
+                    borderRadius="16px" 
+                    fontSize="15px" 
+                    fontWeight="700" 
+                    border="1.5px solid #2a2a2a" 
+                    _hover={{ bg: '#252525', borderColor: '#333' }} 
+                    _active={{ bg: '#1a1a1a' }}
+                    transition="all 0.15s ease-in-out"
+                    onClick={() => setIsSwitchModalOpen(true)}
+                  >
+                    Switch Between Events
+                  </Button>
+                </GridItem>
+              </Grid>
+            </Box>
           </>
         )}
 
