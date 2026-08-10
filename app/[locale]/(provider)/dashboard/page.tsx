@@ -71,6 +71,13 @@ const DefaultUserIcon = () => (
   </svg>
 )
 
+const EditIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+  </svg>
+)
+
 export default function DashboardPage() {
   const toast = useToast();
   
@@ -146,7 +153,7 @@ export default function DashboardPage() {
         const allEvents = data.events || [];
         setEvents(allEvents);
 
-        // 🚀 DYNAMIC ACTIVE EVENT SELECTOR (Reads from localStorage selection)
+        // 🚀 DYNAMIC ACTIVE EVENT SELECTOR
         if (typeof window !== "undefined") {
           const cachedActiveId = localStorage.getItem("qs_active_event_id");
           if (cachedActiveId && allEvents.length > 0) {
@@ -463,8 +470,25 @@ export default function DashboardPage() {
             </Grid>
 
             <Flex direction={{ base: "column", lg: "row" }} px={{ base: "16px", md: "40px" }} mt="40px" gap="32px">
+              {/* ACTIVE EVENT CARD WITH EDIT BUTTON */}
               <Box flex="1">
-                <Heading as="h2" fontSize="20px" fontWeight="700" color="white" mb="14px">Active Event</Heading>
+                <Flex justify="space-between" align="center" mb="14px">
+                  <Heading as="h2" fontSize="20px" fontWeight="700" color="white">Active Event</Heading>
+                  {activeEvent && (
+                    <Button
+                      size="xs"
+                      bg="transparent"
+                      color="#22c55e"
+                      border="1px solid #22c55e"
+                      borderRadius="8px"
+                      leftIcon={<EditIcon />}
+                      _hover={{ bg: "rgba(34, 197, 94, 0.1)" }}
+                      onClick={() => window.location.href = `/${currentLocale}/events/${activeEvent.id}/edit`}
+                    >
+                      Edit Listing
+                    </Button>
+                  )}
+                </Flex>
                 <Box borderRadius="16px" overflow="hidden" w="100%" maxW={{ base: "100%", lg: "400px" }} mb="12px" bg="#1A1A1A" h="180px" display="flex" alignItems="center" justifyContent="center">
                   {activeEvent?.coverImage ? (
                     <img src={activeEvent.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '16px' }} />
@@ -476,9 +500,12 @@ export default function DashboardPage() {
                 <Text fontSize="14px" color="#6b7280">{activeEvent?.venue}</Text>
               </Box>
 
+              {/* QUICK ACTIONS */}
               <Box flex="1">
                 <Heading as="h2" fontSize="20px" fontWeight="700" color="white" mb="14px">Quick Actions</Heading>
                 <Flex direction="column" gap="16px">
+                  
+                  {/* GATE SCANNER CONTAINER */}
                   <Flex direction={{ base: "column", md: "row" }} bg="#121212" p="16px" borderRadius="16px" border="1px solid #2A2A2A" justify="space-between" align={{ base: "stretch", md: "center" }} gap="16px" w="100%">
                     <VStack align="start" spacing="4px">
                       <Text fontSize="14px" fontWeight="700" color="white">Gate Attendant Mode</Text>
@@ -493,11 +520,36 @@ export default function DashboardPage() {
                       </Button>
                     </Flex>
                   </Flex>
+
+                  {/* MANAGE & EDIT EVENT CONTAINER */}
+                  {activeEvent && (
+                    <Flex direction={{ base: "column", md: "row" }} bg="#121212" p="16px" borderRadius="16px" border="1px solid #2A2A2A" justify="space-between" align={{ base: "stretch", md: "center" }} gap="16px" w="100%">
+                      <VStack align="start" spacing="4px">
+                        <Text fontSize="14px" fontWeight="700" color="white">Event Details & Tiers</Text>
+                        <Text fontSize="12px" color="gray.500">Update dates, venue, or hide/add ticket tiers.</Text>
+                      </VStack>
+                      <Button
+                        w={{ base: "100%", md: "auto" }}
+                        size="sm"
+                        h="38px"
+                        bg="#1a1a1a"
+                        color="white"
+                        border="1px solid #333"
+                        fontWeight="700"
+                        leftIcon={<EditIcon />}
+                        _hover={{ bg: "#252525" }}
+                        onClick={() => window.location.href = `/${currentLocale}/events/${activeEvent.id}/edit`}
+                      >
+                        Edit Event
+                      </Button>
+                    </Flex>
+                  )}
+
                 </Flex>
               </Box>
             </Flex>
 
-            {/* 🚀 SIDE-BY-SIDE PROMINENT ACTION BUTTONS */}
+            {/* PROMINENT ACTION BUTTONS */}
             <Box px={{ base: "16px", md: "40px" }} mt="32px">
               <Grid templateColumns={{ base: "1fr", sm: "1fr 1fr" }} gap="16px" w="100%">
                 <GridItem>
@@ -558,7 +610,12 @@ export default function DashboardPage() {
                   return (
                     <Box key={idx} p="14px" bg="#1C1C1C" border="1px solid #2A2A2A" borderRadius="14px">
                       <Flex justify="space-between" align="center" mb="8px">
-                        <Text fontWeight="700" fontSize="15px">{tier.name}</Text>
+                        <HStack spacing="8px">
+                          <Text fontWeight="700" fontSize="15px">{tier.name}</Text>
+                          {tier.isHidden && (
+                            <Badge colorScheme="red" fontSize="10px" borderRadius="4px">Hidden</Badge>
+                          )}
+                        </HStack>
                         <Badge colorScheme="purple" borderRadius="6px" px="8px" py="2px">GH₵{tier.price}</Badge>
                       </Flex>
                       <Divider borderColor="#2A2A2A" my="8px" />
@@ -613,7 +670,7 @@ export default function DashboardPage() {
         </ModalContent>
       </Modal>
 
-      {/* CHECK-IN VERIFICATION MODAL (CAMERA + MANUAL VERIFICATION) */}
+      {/* CHECK-IN VERIFICATION MODAL */}
       <Modal isOpen={isScannerOpen} onClose={() => { cleanupScanner(); setIsScannerOpen(false); }} size="full">
         <ModalOverlay bg="#0D0D0D" />
         <ModalContent bg="#0D0D0D" color="white" display="flex" alignItems="center" justifyContent="center">
@@ -669,10 +726,8 @@ export default function DashboardPage() {
                 {scanStatus === 'idle' && (
                   <>
                     {!isManualMode ? (
-                      /* CAMERA QR SCANNER MODE */
                       <Box id="reader" w="100%" h="100%" />
                     ) : (
-                      /* MANUAL ENTRY CODE MODE */
                       <VStack spacing="14px" w="100%" align="stretch">
                         <Text fontSize="13px" color="gray.300" textAlign="left" fontWeight="600">
                           Enter Verification Code
