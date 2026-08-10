@@ -70,7 +70,6 @@ export default function EditEventPage() {
     async function fetchEventDetails() {
       if (!eventId) return
       try {
-        // 🚀 UPDATED API ENDPOINT: /api/events/manage?id=${eventId}
         const res = await fetch(`/api/events/manage?id=${eventId}`)
         if (!res.ok) throw new Error('Event listing not discovered.')
         const data = await res.json()
@@ -130,23 +129,40 @@ export default function EditEventPage() {
     setTiers(updated)
   }
 
-  // Handle Save Submission
+  // 🚀 FIXED: Handle Save Submission with Session Fallback & Debugging Logs
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!providerId) {
+
+    // Dynamic session fallback check if state isn't populated
+    let activeProviderId = providerId
+    if (!activeProviderId && typeof window !== 'undefined') {
+      const cachedProfile = localStorage.getItem('qs_user_profile')
+      if (cachedProfile) {
+        try {
+          const parsed = JSON.parse(cachedProfile)
+          activeProviderId = parsed.id || ''
+        } catch (err) {
+          console.error('Failed to parse local profile:', err)
+        }
+      }
+    }
+
+    if (!activeProviderId) {
       toast({
         title: 'Authentication Missing',
-        description: 'Please re-log into your account.',
+        description: 'Your user session is missing. Please log in again.',
         status: 'warning',
+        duration: 4000,
       })
       return
     }
 
     setIsSubmitting(true)
+
     try {
       const payload = {
         id: eventId,
-        providerId,
+        providerId: activeProviderId,
         title,
         description,
         category,
@@ -162,7 +178,8 @@ export default function EditEventPage() {
         tiers,
       }
 
-      // 🚀 UPDATED SUBMISSION ENDPOINT: /api/events/manage
+      console.log('🚀 Sending POST to /api/events/manage with payload:', payload)
+
       const res = await fetch('/api/events/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -170,6 +187,8 @@ export default function EditEventPage() {
       })
 
       const data = await res.json()
+      console.log('📥 Received API response:', data)
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Failed to update event.')
       }
@@ -183,6 +202,7 @@ export default function EditEventPage() {
 
       router.push(`/${locale}/dashboard`)
     } catch (err: any) {
+      console.error('❌ Submission error:', err)
       toast({
         title: 'Update Failed',
         description: err.message,
