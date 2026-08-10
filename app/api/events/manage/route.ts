@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { resend } from "../../../../lib/resend";
 
 function getBase64SizeInMB(base64String: string): number {
   if (!base64String) return 0;
@@ -245,12 +246,42 @@ export async function POST(request: Request) {
           include: { customer: true },
         });
 
+        // ─── 📧 RESEND LIVE EMAIL DISPATCH ──────────────────────────────
         if (successfulOrders.length > 0) {
           const providerContact = userExists.providerProfile?.contactEmail || userExists.email;
           const providerPhone = userExists.providerProfile?.contactPhone || userExists.providerProfile?.momoNumber || "N/A";
 
-          console.log(`[DISPATCH NOTICE] Event ${id} details updated. Queuing notifications for ${successfulOrders.length} attendees.`);
-          console.log(`Organizer Direct Contact: Email: ${providerContact} | Phone: ${providerPhone}`);
+          for (const order of successfulOrders) {
+            if (order.customer?.email) {
+              try {
+                await resend.emails.send({
+                  from: 'vxTicket <onboarding@resend.dev>',
+                  to: order.customer.email,
+                  subject: `Important Event Details Update: ${existingRecord.title}`,
+                  html: `
+                    <div style="font-family: Arial, sans-serif; padding: 24px; color: #111; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 12px;">
+                      <h2 style="color: #22c55e; margin-bottom: 8px;">Event Schedule / Location Updated</h2>
+                      <p style="font-size: 15px; color: #444;">Hello <strong>${order.customer.name || 'Valued Guest'}</strong>,</p>
+                      <p style="font-size: 14px; color: #555; line-height: 1.5;">
+                        The organizer for <strong>${existingRecord.title}</strong> has updated key event details (date, time, or venue).
+                      </p>
+                      <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;" />
+                      <p style="font-size: 14px; font-weight: bold; margin-bottom: 8px;">Organizer Direct Contact Information:</p>
+                      <ul style="font-size: 14px; color: #333; line-height: 1.8;">
+                        <li><strong>Support Email:</strong> <a href="mailto:${providerContact}">${providerContact}</a></li>
+                        <li><strong>Phone / MoMo:</strong> ${providerPhone}</li>
+                      </ul>
+                      <div style="margin-top: 24px; padding: 12px 16px; background-color: #f9f9f9; border-left: 4px solid #22c55e; font-size: 12px; color: #666;">
+                        <strong>Terms of Service Notice:</strong> Per vxTicket Terms of Service, the event organizer is directly responsible for managing schedule modifications and direct settlements.
+                      </div>
+                    </div>
+                  `
+                });
+              } catch (emailErr) {
+                console.error(`❌ Failed to send update notification to ${order.customer.email}:`, emailErr);
+              }
+            }
+          }
         }
       }
 
