@@ -177,7 +177,7 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
     ? (activeSelectedTier.isFree || Number(activeSelectedTier.price) === 0 ? "Free Pass" : `${currency.code} ${Number(activeSelectedTier.price).toFixed(2)}`)
     : "Select Option"
 
-  // ─── CHECKOUT PRICE BREAKDOWN CALCULATIONS (Host Absorbs 7% Fee) ─────────
+  // ─── CHECKOUT PRICE BREAKDOWN CALCULATIONS ────────────────────────────────
   const ticketBasePrice = activeSelectedTier ? Number(activeSelectedTier.price) : 0
   const grandTotal = ticketBasePrice * checkoutQuantity 
   const securePlatformFee = activeSelectedTier?.isFree ? 0 : grandTotal * 0.07 
@@ -234,7 +234,7 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
         throw new Error(result.error || "Failed to initialize booking.");
       }
 
-      // FREE TICKET FLOW: Direct redirect to pass receipt
+      // FREE TICKET FLOW
       if (activeSelectedTier.isFree) {
         setIsCheckoutOpen(false);
         toast({
@@ -249,7 +249,7 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
         return;
       }
 
-      // PAID TICKET FLOW: Redirect directly to Paystack's secure checkout URL
+      // PAID TICKET FLOW
       if (result.checkoutUrl) {
         toast({
           title: "Redirecting to Paystack...",
@@ -584,20 +584,45 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
         </Box>
       )}
 
-      {/* ─── 🛡️ THE INTERACTIVE CHECKOUT & BOOKING DRAWER ────────────────────── */}
-      <Drawer isOpen={isCheckoutOpen} placement="right" onClose={() => setIsCheckoutOpen(false)} size={{ base: "full", md: "md" }}>
+      {/* ─── 🛡️ DYNAMIC VIEWPORT FULL-HEIGHT CHECKOUT DRAWER ────────────────── */}
+      <Drawer 
+        isOpen={isCheckoutOpen} 
+        placement="bottom" 
+        onClose={() => setIsCheckoutOpen(false)} 
+        size="full"
+      >
         <DrawerOverlay bg="blackAlpha.800" backdropFilter="blur(8px)" />
-        <DrawerContent bg="#121212" color="white" borderLeft="1px solid #222" maxW={{ md: "460px" }} display="flex" flexDirection="column" h="100vh">
+        <DrawerContent 
+          bg="#121212" 
+          color="white" 
+          borderTop={{ base: "1px solid #222", md: "none" }}
+          borderLeft={{ base: "none", md: "1px solid #222" }}
+          maxW={{ md: "460px" }} 
+          ml={{ md: "auto" }}
+          display="flex" 
+          flexDirection="column" 
+          h={{ base: "100dvh", md: "100vh" }}
+          maxH={{ base: "100dvh", md: "100vh" }}
+        >
           <DrawerCloseButton color="gray.400" _hover={{ color: "white" }} top="18px" right="18px" />
           
-          <DrawerHeader borderBottom="1px solid #222" py="20px" px="24px" flexShrink={0}>
-            <Text fontSize="13px" fontWeight="700" color="#22c55e" letterSpacing="1px" textTransform="uppercase" mb="4px">Secure Checkout</Text>
+          <DrawerHeader borderBottom="1px solid #222" py="16px" px="24px" flexShrink={0}>
+            <Text fontSize="11px" fontWeight="700" color="#22c55e" letterSpacing="1px" textTransform="uppercase" mb="2px">Secure Checkout</Text>
             <Heading size="md" color="white" fontWeight="800">Review & Booking</Heading>
           </DrawerHeader>
 
-          <DrawerBody flex="1" overflowY="auto" px="24px" py="24px" css={{ '&::-webkit-scrollbar': { width: '4px' }, '&::-webkit-scrollbar-thumb': { background: '#222', borderRadius: '4px' } }}>
+          <DrawerBody 
+            flex="1" 
+            overflowY="auto" 
+            px="24px" 
+            py="20px" 
+            css={{ 
+              '&::-webkit-scrollbar': { width: '4px' }, 
+              '&::-webkit-scrollbar-thumb': { background: '#222', borderRadius: '4px' } 
+            }}
+          >
             {activeSelectedTier ? (
-              <VStack spacing="24px" align="stretch">
+              <VStack spacing="20px" align="stretch">
                 
                 {/* Stage 1: Selected Tier Summary */}
                 <Box bg="#1a1a1a" border="1px solid #2a2a2a" borderRadius="16px" p="16px">
@@ -657,16 +682,16 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
                 <Divider borderColor="#222" />
 
                 {/* Stage 3: Guest Contact details */}
-                <VStack spacing="16px" align="stretch">
+                <VStack spacing="14px" align="stretch">
                   <Text fontSize="12px" fontWeight="700" color="gray.400" letterSpacing="0.5px">CUSTOMER INFORMATION</Text>
                   
                   <FormControl isRequired>
-                    <FormLabel fontSize="12px" color="gray.500" mb="6px">Full Name</FormLabel>
+                    <FormLabel fontSize="12px" color="gray.500" mb="4px">Full Name</FormLabel>
                     <Input placeholder="e.g. John Doe" h="46px" bg="#1a1a1a" border="1.5px solid #2a2a2a" borderRadius="10px" _focus={{ borderColor: "#22c55e", boxShadow: "none" }} value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
                   </FormControl>
 
                   <FormControl isRequired>
-                    <FormLabel fontSize="12px" color="gray.500" mb="6px">Email Address</FormLabel>
+                    <FormLabel fontSize="12px" color="gray.500" mb="4px">Email Address</FormLabel>
                     <Input type="email" placeholder="e.g. john@example.com" h="46px" bg="#1a1a1a" border="1.5px solid #2a2a2a" borderRadius="10px" _focus={{ borderColor: "#22c55e", boxShadow: "none" }} value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
                   </FormControl>
                 </VStack>
@@ -675,11 +700,11 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
                 {!activeSelectedTier.isFree && (
                   <>
                     <Divider borderColor="#222" />
-                    <VStack spacing="16px" align="stretch">
+                    <VStack spacing="14px" align="stretch">
                       <Text fontSize="12px" fontWeight="700" color="gray.400" letterSpacing="0.5px">MOBILE MONEY ROUTING (MoMo)</Text>
                       
                       <FormControl>
-                        <FormLabel fontSize="12px" color="gray.500" mb="6px">Network Provider</FormLabel>
+                        <FormLabel fontSize="12px" color="gray.500" mb="4px">Network Provider</FormLabel>
                         <Select h="46px" bg="#1a1a1a" border="1.5px solid #2a2a2a" borderRadius="10px" _focus={{ borderColor: "#22c55e", boxShadow: "none" }} value={momoProvider} onChange={(e) => setMomoProvider(e.target.value)}>
                           <option value="MTN" style={{ background: '#1a1a1a' }}>MTN Mobile Money</option>
                           <option value="TELECEL" style={{ background: '#1a1a1a' }}>Telecel Cash</option>
@@ -688,7 +713,7 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
                       </FormControl>
 
                       <FormControl isRequired>
-                        <FormLabel fontSize="12px" color="gray.500" mb="6px">Wallet Number</FormLabel>
+                        <FormLabel fontSize="12px" color="gray.500" mb="4px">Wallet Number</FormLabel>
                         <Input type="tel" placeholder="e.g. 024XXXXXXX" h="46px" bg="#1a1a1a" border="1.5px solid #2a2a2a" borderRadius="10px" _focus={{ borderColor: "#22c55e", boxShadow: "none" }} value={momoNumber} onChange={(e) => setMomoNumber(e.target.value)} />
                       </FormControl>
                     </VStack>
@@ -727,8 +752,15 @@ export default function DynamicEventDetailsContainer({ initialEvent }: ClientCon
             )}
           </DrawerBody>
 
-          {/* 🚀 STICKY FOOTER ACTION BAR */}
-          <DrawerFooter borderTop="1px solid #222" py="18px" px="24px" bg="#121212" flexShrink={0}>
+          {/* 🚀 FIXED FOOTER PINNED TO VISIBLE VIEWPORT */}
+          <DrawerFooter 
+            borderTop="1px solid #222" 
+            py="16px" 
+            px="24px" 
+            bg="#121212" 
+            flexShrink={0}
+            pb="max(16px, env(safe-area-inset-bottom))"
+          >
             <Button variant="ghost" color="gray.400" _hover={{ bg: "whiteAlpha.100", color: "white" }} mr={3} onClick={() => setIsCheckoutOpen(false)} borderRadius="10px" h="50px" flex="1">
               Cancel
             </Button>

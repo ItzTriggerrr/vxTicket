@@ -70,8 +70,9 @@ export default function EditEventPage() {
     async function fetchEventDetails() {
       if (!eventId) return
       try {
-        const res = await fetch(`/api/events?id=${eventId}`)
-        if (!res.ok) throw new Error('Event not found')
+        // 🚀 UPDATED API ENDPOINT: /api/events/manage?id=${eventId}
+        const res = await fetch(`/api/events/manage?id=${eventId}`)
+        if (!res.ok) throw new Error('Event listing not discovered.')
         const data = await res.json()
 
         if (data.success && data.event) {
@@ -161,7 +162,8 @@ export default function EditEventPage() {
         tiers,
       }
 
-      const res = await fetch('/api/events', {
+      // 🚀 UPDATED SUBMISSION ENDPOINT: /api/events/manage
+      const res = await fetch('/api/events/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

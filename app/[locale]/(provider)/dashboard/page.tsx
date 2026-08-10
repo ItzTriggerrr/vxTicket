@@ -15,6 +15,12 @@ import {
   ModalHeader,
   ModalBody,
   ModalCloseButton,
+  Drawer,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerCloseButton,
   VStack,
   HStack,
   Spinner,
@@ -90,6 +96,7 @@ export default function DashboardPage() {
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
   const [isTierBreakdownOpen, setIsTierBreakdownOpen] = useState(false); 
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false); // ⚡ DRAWER STATE
   const [avatarUrl, setAvatarUrl] = useState("");
 
   // Manual code entry & Mode switching state
@@ -470,7 +477,7 @@ export default function DashboardPage() {
             </Grid>
 
             <Flex direction={{ base: "column", lg: "row" }} px={{ base: "16px", md: "40px" }} mt="40px" gap="32px">
-              {/* ACTIVE EVENT CARD WITH EDIT BUTTON */}
+              {/* ACTIVE EVENT CARD */}
               <Box flex="1">
                 <Flex justify="space-between" align="center" mb="14px">
                   <Heading as="h2" fontSize="20px" fontWeight="700" color="white">Active Event</Heading>
@@ -500,51 +507,39 @@ export default function DashboardPage() {
                 <Text fontSize="14px" color="#6b7280">{activeEvent?.venue}</Text>
               </Box>
 
-              {/* QUICK ACTIONS */}
+              {/* QUICK ACTIONS DRAWER TRIGGER CARD */}
               <Box flex="1">
-                <Heading as="h2" fontSize="20px" fontWeight="700" color="white" mb="14px">Quick Actions</Heading>
+                <Heading as="h2" fontSize="20px" fontWeight="700" color="white" mb="14px">Management & Operations</Heading>
                 <Flex direction="column" gap="16px">
-                  
-                  {/* GATE SCANNER CONTAINER */}
-                  <Flex direction={{ base: "column", md: "row" }} bg="#121212" p="16px" borderRadius="16px" border="1px solid #2A2A2A" justify="space-between" align={{ base: "stretch", md: "center" }} gap="16px" w="100%">
+                  <Flex 
+                    direction="column" 
+                    bg="#121212" 
+                    p="20px" 
+                    borderRadius="16px" 
+                    border="1px solid #2A2A2A" 
+                    justify="space-between" 
+                    gap="16px" 
+                    w="100%"
+                  >
                     <VStack align="start" spacing="4px">
-                      <Text fontSize="14px" fontWeight="700" color="white">Gate Attendant Mode</Text>
-                      <Text fontSize="12px" color="gray.500">Verify codes manually or scan QR tickets directly.</Text>
+                      <Text fontSize="15px" fontWeight="700" color="white">Organizer Control Terminal</Text>
+                      <Text fontSize="13px" color="gray.400">
+                        Access gate check-in, bouncer links, ticket tier controls, and live editing in one drawer.
+                      </Text>
                     </VStack>
-                    <Flex direction={{ base: "column", sm: "row" }} gap="10px" w={{ base: "100%", md: "auto" }}>
-                      <Button w={{ base: "100%", sm: "auto" }} size="sm" h="38px" bg="#22c55e" color="black" fontWeight="800" _hover={{ bg: "#16a34a" }} onClick={() => { setScanStatus('idle'); setIsScannerOpen(true); }}>
-                        Verify / Scan
-                      </Button>
-                      <Button w={{ base: "100%", sm: "auto" }} size="sm" h="38px" variant="outline" color="white" borderColor="#2A2A2A" _hover={{ bg: "#222" }} onClick={handleCopyBouncerLink}>
-                        Copy Bouncer Link
-                      </Button>
-                    </Flex>
+                    <Button
+                      w="100%"
+                      h="48px"
+                      bg="#22c55e"
+                      color="black"
+                      fontWeight="800"
+                      borderRadius="12px"
+                      _hover={{ bg: "#16a34a" }}
+                      onClick={() => setIsQuickActionsOpen(true)}
+                    >
+                      ⚡ Open Quick Actions Menu
+                    </Button>
                   </Flex>
-
-                  {/* MANAGE & EDIT EVENT CONTAINER */}
-                  {activeEvent && (
-                    <Flex direction={{ base: "column", md: "row" }} bg="#121212" p="16px" borderRadius="16px" border="1px solid #2A2A2A" justify="space-between" align={{ base: "stretch", md: "center" }} gap="16px" w="100%">
-                      <VStack align="start" spacing="4px">
-                        <Text fontSize="14px" fontWeight="700" color="white">Event Details & Tiers</Text>
-                        <Text fontSize="12px" color="gray.500">Update dates, venue, or hide/add ticket tiers.</Text>
-                      </VStack>
-                      <Button
-                        w={{ base: "100%", md: "auto" }}
-                        size="sm"
-                        h="38px"
-                        bg="#1a1a1a"
-                        color="white"
-                        border="1px solid #333"
-                        fontWeight="700"
-                        leftIcon={<EditIcon />}
-                        _hover={{ bg: "#252525" }}
-                        onClick={() => window.location.href = `/${currentLocale}/events/${activeEvent.id}/edit`}
-                      >
-                        Edit Event
-                      </Button>
-                    </Flex>
-                  )}
-
                 </Flex>
               </Box>
             </Flex>
@@ -595,6 +590,124 @@ export default function DashboardPage() {
         )}
 
       </Box>
+
+      {/* ⚡ QUICK ACTIONS DRAWER */}
+      <Drawer
+        isOpen={isQuickActionsOpen}
+        placement="right"
+        onClose={() => setIsQuickActionsOpen(false)}
+        size="sm"
+      >
+        <DrawerOverlay bg="rgba(0,0,0,0.8)" backdropFilter="blur(4px)" />
+        <DrawerContent bg="#141414" color="white" borderLeft="1px solid #2A2A2A">
+          <DrawerCloseButton color="gray.400" />
+          <DrawerHeader borderBottom="1px solid #222" fontSize="18px" fontWeight="800">
+            ⚡ Quick Actions Menu
+          </DrawerHeader>
+
+          <DrawerBody py="24px">
+            <VStack spacing="20px" align="stretch">
+              
+              {/* SECTION 1: GATE ATTENDANT / SCANNER */}
+              <Box bg="#1C1C1C" p="16px" borderRadius="14px" border="1px solid #2A2A2A">
+                <Text fontSize="14px" fontWeight="700" color="white" mb="4px">
+                  Gate Attendant Mode
+                </Text>
+                <Text fontSize="12px" color="gray.400" mb="14px">
+                  Scan ticket QR codes or enter verification passes manually at entry gates.
+                </Text>
+                <VStack spacing="10px" align="stretch">
+                  <Button
+                    w="100%"
+                    h="42px"
+                    bg="#22c55e"
+                    color="black"
+                    fontWeight="800"
+                    fontSize="14px"
+                    _hover={{ bg: "#16a34a" }}
+                    onClick={() => {
+                      setIsQuickActionsOpen(false);
+                      setScanStatus('idle');
+                      setIsScannerOpen(true);
+                    }}
+                  >
+                    Open Terminal / Scanner
+                  </Button>
+                  <Button
+                    w="100%"
+                    h="40px"
+                    variant="outline"
+                    color="white"
+                    borderColor="#333"
+                    fontSize="13px"
+                    _hover={{ bg: "#252525" }}
+                    onClick={handleCopyBouncerLink}
+                  >
+                    Copy Bouncer Pass Link
+                  </Button>
+                </VStack>
+              </Box>
+
+              {/* SECTION 2: EVENT DETAILS & TIERS */}
+              {activeEvent && (
+                <Box bg="#1C1C1C" p="16px" borderRadius="14px" border="1px solid #2A2A2A">
+                  <Text fontSize="14px" fontWeight="700" color="white" mb="4px">
+                    Event Details & Ticket Tiers
+                  </Text>
+                  <Text fontSize="12px" color="gray.400" mb="14px">
+                    Modify start dates, venue address, hide expired tiers, or add new promotional tiers.
+                  </Text>
+                  <Button
+                    w="100%"
+                    h="42px"
+                    bg="#1a1a1a"
+                    color="white"
+                    border="1px solid #333"
+                    fontWeight="700"
+                    fontSize="14px"
+                    leftIcon={<EditIcon />}
+                    _hover={{ bg: "#252525" }}
+                    onClick={() => {
+                      setIsQuickActionsOpen(false);
+                      window.location.href = `/${currentLocale}/events/${activeEvent.id}/edit`;
+                    }}
+                  >
+                    Edit Event & Tiers
+                  </Button>
+                </Box>
+              )}
+
+              {/* SECTION 3: TIER PERFORMANCE ANALYTICS */}
+              {activeEvent && (
+                <Box bg="#1C1C1C" p="16px" borderRadius="14px" border="1px solid #2A2A2A">
+                  <Text fontSize="14px" fontWeight="700" color="white" mb="4px">
+                    Tier Breakdown & Payouts
+                  </Text>
+                  <Text fontSize="12px" color="gray.400" mb="14px">
+                    View individual tier ticket sales, check-in metrics, and net revenue payouts.
+                  </Text>
+                  <Button
+                    w="100%"
+                    h="42px"
+                    bg="#7c3aed"
+                    color="white"
+                    fontWeight="700"
+                    fontSize="14px"
+                    _hover={{ bg: "#6d28d9" }}
+                    onClick={() => {
+                      setIsQuickActionsOpen(false);
+                      setIsTierBreakdownOpen(true);
+                    }}
+                  >
+                    View Sales Breakdown
+                  </Button>
+                </Box>
+              )}
+
+            </VStack>
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
 
       {/* TIER BREAKDOWN MODAL */}
       {activeEvent && activeEvent.tiers && (
