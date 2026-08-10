@@ -142,6 +142,7 @@ model EventListing {
   ticketOrders    TicketOrder[]
   savedByUsers    SavedEvent[]
   reviews         Review[]
+  editLogs        EventEditLog[] // 👈 Audit tracking relation for post-sale edits
 
   // ─── 🚀 DATABASE PERFORMANCE INDEXES ──────────────────────────────────
   @@index([status, startDate])
@@ -162,6 +163,23 @@ model TicketTier {
   capacity        Int?
   sold            Int          @default(0) // ⚡ Track capacity decrements atomically via webhook pipeline
   isFree          Boolean      @default(false)
+  isHidden        Boolean      @default(false) // 👈 Toggles hiding tiers (e.g. expired Early Bird)
+
+  @@index([eventId])
+}
+
+// ─── AUDIT LOGGING FOR POST-SALE EDITS ───────────────────────────────────────
+model EventEditLog {
+  id           String       @id @default(uuid())
+  eventId      String
+  event        EventListing @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  updatedBy    String       // User/Organizer ID who initiated the change
+  fieldChanged String       // e.g. "VENUE", "START_DATE", "START_TIME"
+  oldValue     String?      @db.Text
+  newValue     String?      @db.Text
+  
+  createdAt    DateTime     @default(now())
 
   @@index([eventId])
 }

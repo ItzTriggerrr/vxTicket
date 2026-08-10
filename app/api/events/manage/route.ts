@@ -64,6 +64,7 @@ export async function GET(request: Request) {
         isFeatured: true,
         isPopular: true,
         ticketTiers: {
+          where: { isHidden: false }, // Exclude hidden/expired promotional tiers from public feed
           select: {
             id: true,
             name: true,
@@ -71,6 +72,7 @@ export async function GET(request: Request) {
             capacity: true,
             sold: true,
             isFree: true,
+            isHidden: true,
           },
         },
       },
@@ -81,13 +83,13 @@ export async function GET(request: Request) {
       tiers: event.ticketTiers,
     }));
 
-    // 1. Hero Event: EXCLUSIVELY events where you set isHero = true (Null if none toggled)
+    // 1. Hero Event: EXCLUSIVELY events where isHero = true
     const heroEvent = eventsWithTiers.find((e: any) => e.isHero === true) || null;
     
-    // 2. Featured Events: Automatic top 4 upcoming events (chronological order)
+    // 2. Featured Events: Top 4 upcoming events
     const featuredEvents = [...eventsWithTiers].slice(0, 4);
 
-    // 3. Made for You (Popular / All): Full collection of all published events
+    // 3. Popular / All
     const popularEvents = eventsWithTiers;
 
     return NextResponse.json(
@@ -112,7 +114,7 @@ export async function GET(request: Request) {
   }
 }
 
-// ─── POST HANDLER FOR UPDATING & CREATING LISTINGS ─────────────────
+// ─── POST HANDLER FOR UPDATING & CREATING LISTINGS WITH SAFEGUARD LOGIC ─────
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -148,7 +150,7 @@ export async function POST(request: Request) {
       const coverSize = getBase64SizeInMB(coverImage);
       if (coverSize > MAX_IMAGE_SIZE_MB) {
         return NextResponse.json(
-          { error: `The primary cover flyer is too large (${coverSize.toFixed(2)}MB). To prevent connection drops, please upload an image under ${MAX_IMAGE_SIZE_MB}MB.` },
+          { error: `The primary cover flyer is too large (${coverSize.toFixed(2)}MB). Please upload an image under ${MAX_IMAGE_SIZE_MB}MB.` },
           { status: 413 }
         );
       }
@@ -161,7 +163,7 @@ export async function POST(request: Request) {
           const gallerySize = getBase64SizeInMB(img);
           if (gallerySize > MAX_IMAGE_SIZE_MB) {
             return NextResponse.json(
-              { error: `Gallery image #${i + 1} is too large (${gallerySize.toFixed(2)}MB). To prevent connection drops, please upload images under ${MAX_IMAGE_SIZE_MB}MB.` },
+              { error: `Gallery image #${i + 1} is too large (${gallerySize.toFixed(2)}MB). Please upload images under ${MAX_IMAGE_SIZE_MB}MB.` },
               { status: 413 }
             );
           }
@@ -169,7 +171,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const userExists = await prisma.user.findUnique({ where: { id: providerId }, select: { id: true } });
+    const userExists = await prisma.user.findUnique({ 
+      where: { id: providerId }, 
+      include: { providerProfile: true } 
+    });
+    
     if (!userExists) {
       return NextResponse.json({ error: "Stale user session profile reference." }, { status: 444 });
     }
@@ -180,20 +186,83 @@ export async function POST(request: Request) {
       return isNaN(parsed.getTime()) ? null : parsed;
     };
 
-    let eventListing;
-    let existingRecord = id ? await prisma.eventListing.findUnique({ where: { id }, select: { id: true } }) : null;
+    const existingRecord = id ? await prisma.eventListing.findUnique({ 
+      where: { id },
+      include: { ticketTiers: true }
+    }) : null;
 
     const formattedCategory = category ? category.trim() : "OTHER";
+    const parsedStartDate = parseIncomingDate(startDate) || new Date();
+    const parsedEndDate = parseIncomingDate(endDate);
 
+    let eventListing: any;
+
+    // ─── 🛡️ UPDATE EXISTING EVENT ──────────────────────────────────────
     if (id && existingRecord) {
+      const auditLogsToCreate: Array<{ fieldChanged: string; oldValue: string; newValue: string }> = [];
+
+      // Detect Date Change
+      if (existingRecord.startDate.toISOString() !== parsedStartDate.toISOString()) {
+        auditLogsToCreate.push({
+          fieldChanged: "START_DATE",
+          oldValue: existingRecord.startDate.toISOString(),
+          newValue: parsedStartDate.toISOString(),
+        });
+      }
+
+      // Detect Time Change
+      if (existingRecord.startTime !== startTime) {
+        auditLogsToCreate.push({
+          fieldChanged: "START_TIME",
+          oldValue: existingRecord.startTime || "",
+          newValue: startTime || "",
+        });
+      }
+
+      // Detect Venue / Address Change
+      if (existingRecord.venueName !== venueName || existingRecord.address !== address) {
+        auditLogsToCreate.push({
+          fieldChanged: "VENUE_OR_ADDRESS",
+          oldValue: `${existingRecord.venueName} (${existingRecord.address})`,
+          newValue: `${venueName} (${address})`,
+        });
+      }
+
+      // Save Audit Logs if critical fields changed
+      if (auditLogsToCreate.length > 0) {
+        await prisma.eventEditLog.createMany({
+          data: auditLogsToCreate.map((log) => ({
+            eventId: id,
+            updatedBy: providerId,
+            fieldChanged: log.fieldChanged,
+            oldValue: log.oldValue,
+            newValue: log.newValue,
+          })),
+        });
+
+        const successfulOrders = await prisma.ticketOrder.findMany({
+          where: { eventId: id, status: "Successful" },
+          include: { customer: true },
+        });
+
+        if (successfulOrders.length > 0) {
+          const providerContact = userExists.providerProfile?.contactEmail || userExists.email;
+          const providerPhone = userExists.providerProfile?.contactPhone || userExists.providerProfile?.momoNumber || "N/A";
+
+          console.log(`[DISPATCH NOTICE] Event ${id} details updated. Queuing notifications for ${successfulOrders.length} attendees.`);
+          console.log(`Organizer Direct Contact: Email: ${providerContact} | Phone: ${providerPhone}`);
+        }
+      }
+
+      // Update event record
       eventListing = await prisma.eventListing.update({
         where: { id },
         data: {
           title,
           description,
           category: formattedCategory,
-          startDate: (parseIncomingDate(startDate) || new Date()) as any,
-          endDate: parseIncomingDate(endDate) as any,
+          startDate: parsedStartDate as any,
+          endDate: parsedEndDate as any,
           startTime,
           endTime,
           venueName,
@@ -208,16 +277,46 @@ export async function POST(request: Request) {
         },
       });
 
-      await prisma.ticketTier.deleteMany({ where: { eventId: id } });
+      // Update Tiers Safely (capacity / isHidden only for existing tiers, create new ones if needed)
+      if (tiers && Array.isArray(tiers)) {
+        for (const tier of tiers) {
+          if (tier.id) {
+            await prisma.ticketTier.update({
+              where: { id: tier.id },
+              data: {
+                capacity: parseInt(tier.capacity) || 0,
+                isHidden: tier.isHidden ?? false,
+                description: tier.description || null,
+              },
+            });
+          } else {
+            await prisma.ticketTier.create({
+              data: {
+                eventId: id,
+                name: tier.name || "Standard Admission",
+                price: tier.isFree ? 0 : parseFloat(tier.price) || 0,
+                capacity: parseInt(tier.capacity) || 0,
+                isFree: tier.isFree || false,
+                isHidden: tier.isHidden ?? false,
+                description: tier.description || null,
+              },
+            });
+          }
+        }
+      }
+
+      // Clean refresh lineup
       await prisma.artist.deleteMany({ where: { eventId: id } });
+
+    // ─── 🚀 CREATE NEW EVENT ──────────────────────────────────────────
     } else {
       eventListing = await prisma.eventListing.create({
         data: {
           title,
           description,
           category: formattedCategory,
-          startDate: (parseIncomingDate(startDate) || new Date()) as any,
-          endDate: parseIncomingDate(endDate) as any,
+          startDate: parsedStartDate as any,
+          endDate: parsedEndDate as any,
           startTime,
           endTime,
           venueName,
@@ -231,21 +330,23 @@ export async function POST(request: Request) {
           provider: { connect: { id: providerId } }
         },
       });
+
+      if (tiers && Array.isArray(tiers) && tiers.length > 0) {
+        await prisma.ticketTier.createMany({
+          data: tiers.map((tier: any) => ({
+            eventId: eventListing.id,
+            name: tier.name || "Standard Admission",
+            price: tier.isFree ? 0 : parseFloat(tier.price) || 0,
+            capacity: parseInt(tier.capacity) || 0,
+            isFree: tier.isFree || false,
+            isHidden: tier.isHidden || false,
+            description: tier.description || null
+          })),
+        });
+      }
     }
 
-    if (tiers && Array.isArray(tiers) && tiers.length > 0) {
-      await prisma.ticketTier.createMany({
-        data: tiers.map((tier: any) => ({
-          eventId: eventListing.id,
-          name: tier.name || "Standard Admission",
-          price: tier.isFree ? 0 : parseFloat(tier.price) || 0,
-          capacity: parseInt(tier.capacity) || 0,
-          isFree: tier.isFree || false,
-          description: tier.description || null
-         })),
-      });
-    }
-
+    // Process Lineup
     if (lineup && Array.isArray(lineup) && lineup.length > 0) {
       await prisma.artist.createMany({
         data: lineup.map((performer: any) => ({
