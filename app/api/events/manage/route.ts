@@ -65,7 +65,7 @@ export async function GET(request: Request) {
         isFeatured: true,
         isPopular: true,
         ticketTiers: {
-          where: { isHidden: false }, // Exclude hidden/expired promotional tiers from public feed
+          where: { isHidden: false },
           select: {
             id: true,
             name: true,
@@ -84,13 +84,8 @@ export async function GET(request: Request) {
       tiers: event.ticketTiers,
     }));
 
-    // 1. Hero Event: EXCLUSIVELY events where isHero = true
     const heroEvent = eventsWithTiers.find((e: any) => e.isHero === true) || null;
-    
-    // 2. Featured Events: Top 4 upcoming events
     const featuredEvents = [...eventsWithTiers].slice(0, 4);
-
-    // 3. Popular / All
     const popularEvents = eventsWithTiers;
 
     return NextResponse.json(
@@ -229,6 +224,8 @@ export async function POST(request: Request) {
         });
       }
 
+      console.log(`[AUDIT DETECTOR] Critical fields changed count: ${auditLogsToCreate.length}`);
+
       // Save Audit Logs if critical fields changed
       if (auditLogsToCreate.length > 0) {
         await prisma.eventEditLog.createMany({
@@ -241,27 +238,36 @@ export async function POST(request: Request) {
           })),
         });
 
+        // 🚀 ROBUST MULTI-STATUS ORDER QUERY
         const successfulOrders = await prisma.ticketOrder.findMany({
-          where: { eventId: id, status: "Successful" },
+          where: { 
+            eventId: id, 
+            status: { in: ["Successful", "SUCCESSFUL", "SUCCESS", "COMPLETED", "PAID", "Completed", "Paid"] } 
+          },
           include: { customer: true },
         });
 
-        // ─── 📧 RESEND LIVE EMAIL DISPATCH ──────────────────────────────
+        console.log(`[DISPATCH NOTICE] Found ${successfulOrders.length} valid orders for notify dispatch.`);
+
         if (successfulOrders.length > 0) {
           const providerContact = userExists.providerProfile?.contactEmail || userExists.email;
           const providerPhone = userExists.providerProfile?.contactPhone || userExists.providerProfile?.momoNumber || "N/A";
 
-          for (const order of successfulOrders) {
-            if (order.customer?.email) {
+          for (const order of successfulOrders as any[]) {
+            // Safe fallback for customer email across schema variants
+            const recipientEmail = order.customer?.email || order.customerEmail || order.email;
+            const recipientName = order.customer?.name || order.customerName || order.name || 'Valued Guest';
+
+            if (recipientEmail) {
               try {
-                await resend.emails.send({
+                const resendResponse = await resend.emails.send({
                   from: 'vxTicket <onboarding@resend.dev>',
-                  to: order.customer.email,
+                  to: recipientEmail,
                   subject: `Important Event Details Update: ${existingRecord.title}`,
                   html: `
                     <div style="font-family: Arial, sans-serif; padding: 24px; color: #111; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 12px;">
                       <h2 style="color: #22c55e; margin-bottom: 8px;">Event Schedule / Location Updated</h2>
-                      <p style="font-size: 15px; color: #444;">Hello <strong>${order.customer.name || 'Valued Guest'}</strong>,</p>
+                      <p style="font-size: 15px; color: #444;">Hello <strong>${recipientName}</strong>,</p>
                       <p style="font-size: 14px; color: #555; line-height: 1.5;">
                         The organizer for <strong>${existingRecord.title}</strong> has updated key event details (date, time, or venue).
                       </p>
@@ -277,9 +283,12 @@ export async function POST(request: Request) {
                     </div>
                   `
                 });
+                console.log(`✅ Resend Email Dispatched to ${recipientEmail}:`, resendResponse);
               } catch (emailErr) {
-                console.error(`❌ Failed to send update notification to ${order.customer.email}:`, emailErr);
+                console.error(`❌ Failed to send update notification to ${recipientEmail}:`, emailErr);
               }
+            } else {
+              console.warn(`⚠️ Order ID ${order.id} missing target email address.`);
             }
           }
         }
@@ -308,7 +317,7 @@ export async function POST(request: Request) {
         },
       });
 
-      // Update Tiers Safely (capacity / isHidden only for existing tiers, create new ones if needed)
+      // Update Tiers Safely
       if (tiers && Array.isArray(tiers)) {
         for (const tier of tiers) {
           if (tier.id) {

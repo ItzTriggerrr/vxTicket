@@ -102,6 +102,19 @@ export default function TicketReceiptPage({ params }: TicketPageProps) {
     ? new Date(order.event.startDate).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short", year: "2-digit" })
     : (order.event?.date ? new Date(order.event.date).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short", year: "2-digit" }) : "TBD");
 
+  // 🕒 DYNAMIC TIME FORMATTING LOGIC
+  const startTime = order.event?.startTime || order.startTime || "";
+  const endTime = order.event?.endTime || order.endTime || "";
+
+  let formattedTimeString = "";
+  if (startTime && endTime) {
+    formattedTimeString = `${startTime} – ${endTime}`;
+  } else if (startTime) {
+    formattedTimeString = startTime;
+  } else {
+    formattedTimeString = "See Event Info";
+  }
+
   return (
     <Flex minH="100vh" bg="#0d0d0d" color="white" align="center" justify="center" px="16px" py="40px" fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
       <Box maxW="400px" w="100%" textAlign="center">
@@ -183,11 +196,15 @@ export default function TicketReceiptPage({ params }: TicketPageProps) {
               </Box>
             </Flex>
 
+            {/* 🕒 UPDATED DATE & TIME ROW */}
             <Flex justify="space-between" align="flex-start">
               <Box>
                 <Text fontSize="11px" color="#6B7280" fontWeight="600">Date & Time</Text>
                 <Text fontSize="12px" fontWeight="800" color="#111827">
-                  {formattedDateString}{order.event?.startTime ? `, ${order.event.startTime}` : ''}
+                  {formattedDateString}
+                </Text>
+                <Text fontSize="11px" fontWeight="700" color={currentTheme.text} mt="1px">
+                  {formattedTimeString}
                 </Text>
               </Box>
               <Box textAlign="right">
