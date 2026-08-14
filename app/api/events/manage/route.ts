@@ -261,9 +261,9 @@ export async function POST(request: Request) {
             if (recipientEmail) {
               try {
                 const resendResponse = await resend.emails.send({
-                  from: 'vxTicket <onboarding@resend.dev>',
+                  from: 'vxTicket <updates@vxticket.com>',
                   to: recipientEmail,
-                  subject: `Important Event Details Update: ${existingRecord.title}`,
+                  subject: `Important Event Update: ${existingRecord.title}`,
                   html: `
                     <div style="font-family: Arial, sans-serif; padding: 24px; color: #111; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 12px;">
                       <h2 style="color: #22c55e; margin-bottom: 8px;">Event Schedule / Location Updated</h2>
