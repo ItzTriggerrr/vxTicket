@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { prisma } from '@/lib/prisma'; // Adjust path if your prisma client is in lib/prisma or lib/db
+import { prisma } from '@/lib/prisma';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://vxticket.com';
@@ -13,7 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1.0,
     },
     {
-      url: `${baseUrl}/events`,
+      url: `${baseUrl}/en/feed`,
       lastModified: new Date(),
       changeFrequency: 'hourly',
       priority: 0.9,
@@ -22,7 +22,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // 2. Dynamic public event listings from database
   try {
-    const events = await prisma.event.findMany({
+    const events = await prisma.eventListing.findMany({
       select: {
         id: true,
         updatedAt: true,
@@ -31,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
 
     const eventRoutes: MetadataRoute.Sitemap = events.map((event) => ({
-      url: `${baseUrl}/events/${event.id}`,
+      url: `${baseUrl}/en/event/${event.id}`,
       lastModified: event.updatedAt ? new Date(event.updatedAt) : new Date(),
       changeFrequency: 'daily',
       priority: 0.8,
