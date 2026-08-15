@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     "e-tickets ghana",
   ],
   verification: {
-    google: "google28b2637b8e18e1c4",
+    google: "ubBbpI0jKWf75k0dsPmdp6DVWyqwO8h7fWm9hy-sUm0",
   },
   authors: [{ name: "vxTicket" }],
   creator: "vxTicket",
