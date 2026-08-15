@@ -9,7 +9,22 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const authTokenCookie = request.cookies.get("qs_auth_jwt")?.value;
 
-  // 1. REGIONAL LOCALE REWRITE CHECK
+  // 1. Explicitly bypass static metadata and SEO endpoints
+  if (
+    pathname.startsWith("/sitemap") ||
+    pathname.startsWith("/robots") ||
+    pathname.startsWith("/manifest") ||
+    pathname.endsWith(".ico") ||
+    pathname.endsWith(".png") ||
+    pathname.endsWith(".jpg") ||
+    pathname.endsWith(".svg") ||
+    pathname.endsWith(".xml") ||
+    pathname.endsWith(".txt")
+  ) {
+    return NextResponse.next();
+  }
+
+  // 2. REGIONAL LOCALE REWRITE CHECK
   const hasLocale = supportedLocales.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
@@ -19,15 +34,11 @@ export function middleware(request: NextRequest) {
     activeLocale = pathname.split("/")[1];
   }
 
-  // 2. CRITICAL ROLE GUARD INTERCEPT SECURITY LAYER
-  // Detects if the unauthenticated user is trying to access protected provider subfolders
+  // 3. CRITICAL ROLE GUARD INTERCEPT SECURITY LAYER
   const isTargetingProviderDashboard = pathname.includes("/dashboard");
 
   if (isTargetingProviderDashboard && !authTokenCookie) {
     // 🚨 TEMPORARY BYPASS FOR UI TESTING 🚨
-    // We commented out the redirect so you can view your new form without logging in.
-    // REMEMBER TO UNCOMMENT THIS LATER!
-    
     // const securityRedirectUrl = new URL(`/${activeLocale}`, request.url);
     // return NextResponse.redirect(securityRedirectUrl);
   }
@@ -36,9 +47,10 @@ export function middleware(request: NextRequest) {
 
   // Parse browser configuration locale preferences
   const acceptLanguage = request.headers.get("accept-language") || "";
-  const preferredLocale = supportedLocales.find((locale) => 
-    acceptLanguage.toLowerCase().includes(locale)
-  ) || defaultLocale;
+  const preferredLocale =
+    supportedLocales.find((locale) =>
+      acceptLanguage.toLowerCase().includes(locale)
+    ) || defaultLocale;
 
   request.nextUrl.pathname = `/${preferredLocale}${pathname}`;
   return NextResponse.redirect(request.nextUrl);
@@ -46,6 +58,13 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|assets|favicon.ico|sw.js).*)",
+    /*
+     * Match all request paths except for:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - sitemap.xml, robots.txt, manifest, favicons/icons
+     */
+    "/((?!api|_next/static|_next/image|assets|favicon.ico|icon.png|apple-icon.png|sitemap.xml|robots.txt|manifest.webmanifest|sw.js).*)",
   ],
 };
