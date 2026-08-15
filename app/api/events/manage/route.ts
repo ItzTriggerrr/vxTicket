@@ -278,7 +278,7 @@ export async function POST(request: Request) {
                         <li><strong>Phone / MoMo:</strong> ${providerPhone}</li>
                       </ul>
                       <div style="margin-top: 24px; padding: 12px 16px; background-color: #f9f9f9; border-left: 4px solid #22c55e; font-size: 12px; color: #666;">
-                        <strong>Terms of Service Notice:</strong> Per vxTicket Terms of Service, the event organizer is directly responsible for managing schedule modifications and direct settlements.
+                        <strong>Terms of Service Notice:</strong> read vxTicket Terms of Service, and if there be any inconvenience, please contact the organizer directly.
                       </div>
                     </div>
                   `
