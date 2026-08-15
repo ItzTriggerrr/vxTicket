@@ -20,6 +20,9 @@ export const metadata: Metadata = {
     "party tickets ghana",
     "e-tickets ghana",
   ],
+  verification: {
+    google: "google28b2637b8e18e1c4",
+  },
   authors: [{ name: "vxTicket" }],
   creator: "vxTicket",
   publisher: "vxTicket",
